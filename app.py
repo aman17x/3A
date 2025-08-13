@@ -11,6 +11,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # ==================================================
+# Load environment variables
+# ==================================================
+load_dotenv()
+
+# ==================================================
 # Email Sending Utility
 # ==================================================
 def send_email(to_email, subject, body):
@@ -32,26 +37,25 @@ def send_email(to_email, subject, body):
         print(f"Failed to send email: {e}")
 
 # ==================================================
-# Setup
+# Flask App Setup
 # ==================================================
-load_dotenv()
-
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret')
 
-# =======================
+# ==================================================
 # Database Configuration
-# =======================
-db_url = os.environ.get("DATABASE_URL")
+# ==================================================
+db_url = os.getenv("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-# Use PostgreSQL if DATABASE_URL exists, else fallback to SQLite locally
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///art_gallery.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-# Cloudinary config
+# ==================================================
+# Cloudinary Configuration
+# ==================================================
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
     api_key=os.getenv('CLOUDINARY_API_KEY'),
@@ -104,7 +108,6 @@ class Like(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('art_post.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
 
 User.likes = db.relationship('Like', backref='user', lazy='dynamic')
@@ -148,7 +151,7 @@ def search():
         ).order_by(ArtPost.created_at.desc()).all()
     return render_template('search_results.html', posts=results, query=query)
 
-@app.route('/signup', methods=['GET','POST'])
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         u, e, p = request.form['username'], request.form['email'], request.form['password']
@@ -162,7 +165,7 @@ def signup():
         return redirect(url_for('gallery'))
     return render_template('signup.html')
 
-@app.route('/signin', methods=['GET','POST'])
+@app.route('/signin', methods=['GET', 'POST'])
 def signin():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form['email']).first()
@@ -172,7 +175,7 @@ def signin():
         return jsonify({'error': 'Invalid'}), 401
     return render_template('signin.html')
 
-@app.route('/upload', methods=['GET','POST'])
+@app.route('/upload', methods=['GET', 'POST'])
 def upload():
     if 'user_id' not in session:
         return redirect(url_for('signin'))
@@ -343,14 +346,17 @@ def admin_dashboard():
                            comment_count=comment_count)
 
 # ==================================================
-# Main
+# Main Entry
 # ==================================================
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        if not User.query.filter_by(email='versionx17@gmail.com').first():
-            admin = User(username='verse17', email='versionx17@gmail.com', is_admin=True)
-            admin.set_password('rnkabhosda')
+        admin_email = os.getenv("ADMIN_EMAIL")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        admin_username = os.getenv("ADMIN_USERNAME", "admin")
+        if admin_email and not User.query.filter_by(email=admin_email).first():
+            admin = User(username=admin_username, email=admin_email, is_admin=True)
+            admin.set_password(admin_password or "changeme")
             db.session.add(admin)
             db.session.commit()
     app.run(debug=False)
