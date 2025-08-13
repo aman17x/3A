@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Art Gallery</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+    <!-- HEADER / NAV -->
+    <header class="site-header">
+        <div class="container nav-container">
+            <div class="logo">
+                <h1><a href="{{ url_for('gallery') }}">🎨 Artpip install gunicornGal</a></h1>
+            </div>
+
+            <!-- Hamburger Icon -->
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('gallery') }}" class="{% if request.endpoint == 'gallery' %}active{% endif %}">Home</a></li>
+
+                    {% if session.user_id %}
+                        <li><a href="{{ url_for('upload') }}" class="{% if request.endpoint == 'upload' %}active{% endif %}">Upload</a></li>
+                        <li><a href="{{ url_for('chat') }}" class="{% if request.endpoint == 'chat' %}active{% endif %}">Chat</a></li>
+                        <li><a href="{{ url_for('user_profile', user_id=session.user_id) }}" class="{% if request.endpoint == 'user_profile' %}active{% endif %}">My Profile</a></li>
+                        <li><a href="{{ url_for('settings') }}" class="{% if request.endpoint == 'settings' %}active{% endif %}">Settings</a></li>
+                        {% if current_user and current_user.is_admin %}
+                            <li><a href="{{ url_for('admin_dashboard') }}" class="{% if request.endpoint == 'admin_dashboard' %}active{% endif %}">Admin Dashboard</a></li>
+                        {% endif %}
+                        <li><a href="{{ url_for('logout') }}" class="btn-danger">Logout</a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('signin') }}" class="{% if request.endpoint == 'signin' %}active{% endif %}">Sign In</a></li>
+                        <li><a href="{{ url_for('signup') }}" class="btn-primary {% if request.endpoint == 'signup' %}active{% endif %}">Sign Up</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Mobile backdrop -->
+        <div class="nav-backdrop"></div>
+    </header>
+
+    <!-- GLOBAL SEARCH BAR -->
+    <div class="global-search">
+        <form action="{{ url_for('search') }}" method="GET" class="search-form">
+            <input type="text" name="q" placeholder="Search artworks..."
+                   value="{{ request.args.get('q', '') }}">
+            <button type="submit">Search</button>
+        </form>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+        <p>&copy; {{ current_year|default(2025) }} Art Gallery — All rights reserved.</p>
+    </footer>
+
+    <!-- JS -->
+    <script>
+        // Hamburger toggle
+        const hamburger = document.querySelector('.hamburger');
+        const navLinks = document.querySelector('.nav-links');
+        const navBackdrop = document.querySelector('.nav-backdrop');
+
+        hamburger.addEventListener('click', () => {
+            navLinks.classList.toggle('nav-active');
+            navBackdrop.classList.toggle('backdrop-active');
+        });
+
+        navBackdrop.addEventListener('click', () => {
+            navLinks.classList.remove('nav-active');
+            navBackdrop.classList.remove('backdrop-active');
+        });
+    </script>
+</body>
+</html>

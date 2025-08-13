@@ -1,0 +1,65 @@
+{% extends "base.html" %} {% block content %}
+<div class="form-card">
+    <h2>Profile Settings</h2>
+
+    {% if error %}
+    <p style="color:#dc3545; margin-bottom:10px;">{{ error }}</p>
+    {% endif %}
+
+    <form method="POST">
+        <label>Username</label>
+        <input name="username" value="{{ user.username }}" required>
+
+        <label>Email</label>
+        <input type="email" name="email" value="{{ user.email }}" required>
+
+        <label>Avatar</label>
+        <div style="display:flex; gap:12px; align-items:center;">
+            <img id="avatarPreview" src="{{ user.avatar_url or url_for('static', filename='images/avatar-placeholder.png') }}" alt="avatar" style="width:56px; height:56px; border-radius:50%; object-fit:cover; background:#f0f2f5;">
+            <input type="hidden" name="avatar_url" id="avatar_url" value="{{ user.avatar_url }}">
+            <button type="button" id="openUploader" class="btn btn-primary">Upload Avatar</button>
+        </div>
+
+        <label>Bio</label>
+        <textarea name="bio" placeholder="Tell us about yourself...">{{ user.bio }}</textarea>
+
+        <hr style="margin:16px 0; border:none; border-top:1px solid #eee">
+
+        <label>New Password (optional)</label>
+        <input type="password" name="new_password" placeholder="Leave blank to keep current password">
+
+        <button type="submit" class="btn btn-primary" style="margin-top:12px;">Save Changes</button>
+    </form>
+</div>
+
+<!-- Cloudinary Upload Widget -->
+<script src="https://upload-widget.cloudinary.com/latest/global/all.js" type="text/javascript"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const btn = document.getElementById('openUploader');
+        const hidden = document.getElementById('avatar_url');
+        const preview = document.getElementById('avatarPreview');
+
+        if (!btn) return;
+
+        const widget = cloudinary.createUploadWidget({
+            cloudName: "{{ CLOUDINARY_CLOUD_NAME }}",
+            uploadPreset: "{{ CLOUDINARY_AVATAR_PRESET }}", // from app.py context
+            folder: "avatars",
+            multiple: false,
+            sources: ["local", "url", "camera"],
+            clientAllowedFormats: ["png", "jpg", "jpeg", "webp"],
+            maxImageFileSize: 3000000,
+            cropping: false
+        }, (error, result) => {
+            if (!error && result && result.event === "success") {
+                const url = result.info.secure_url;
+                hidden.value = url;
+                preview.src = url;
+            }
+        });
+
+        btn.addEventListener('click', () => widget.open());
+    });
+</script>
+{% endblock %}

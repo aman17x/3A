@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="art-detail-card">
+    <div class="art-detail-grid">
+        <!-- Left side: Artwork image -->
+        <div class="art-detail-media">
+            <div class="image-frame">
+                <img src="{{ post.image_url }}" alt="{{ post.title }}">
+            </div>
+        </div>
+        <!-- Right side: Info and actions -->
+        <div class="art-detail-info">
+            <h2 class="art-title">{{ post.title }}</h2>
+            <div class="art-caption">{{ post.caption }}</div>
+            <div class="art-meta-line">
+                <span>By <a href="{{ url_for('user_profile', user_id=post.user.id) }}">{{ post.user.username }}</a></span>
+                <span>{{ post.created_at.strftime('%b %d, %Y') }}</span>
+            </div>
+            <!-- LIKE BUTTON -->
+            <div class="like-section" data-post-id="{{ post.id }}">
+                <button class="like-btn {% if current_user and post.likes.filter_by(user_id=current_user.id).first() %}liked{% endif %}">
+                    ❤️
+                </button>
+                <span class="like-count">{{ post.like_count() }}</span>
+            </div>
+            <!-- COMMENTS SECTION: Now just below likes button! -->
+            <div class="comments">
+                <h3>Comments</h3>
+                <form class="comment-form" method="POST" action="{{ url_for('add_comment', post_id=post.id) }}">
+                    <textarea name="text" placeholder="Add a comment..." required></textarea>
+                    <button type="submit" class="btn-primary">Post Comment</button>
+                </form>
+                <div class="comment-list">
+                    {% for comment in comments %}
+                        <div class="comment-item">
+                            <div class="comment-head">
+                                <strong>{{ comment.user.username }}</strong>
+                                <span class="comment-date">{{ comment.created_at.strftime('%b %d, %Y %I:%M%p') }}</span>
+                            </div>
+                            <div class="comment-text">{{ comment.text }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="admin-dashboard container">
+    <h1>Admin Dashboard</h1>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h2>{{ user_count }}</h2>
+            <p>Registered Users</p>
+            <a href="{{ url_for('users_list') }}" class="btn btn-primary btn-sm">Manage Users</a>
+        </div>
+
+        <div class="stat-card">
+            <h2>{{ artwork_count }}</h2>
+            <p>Artworks Uploaded</p>
+            <a href="{{ url_for('gallery') }}" class="btn btn-primary btn-sm">View Gallery</a>
+        </div>
+
+        <div class="stat-card">
+            <h2>{{ comment_count }}</h2>
+            <p>Comments Posted</p>
+            <a href="{{ url_for('chat') }}" class="btn btn-primary btn-sm">View Chat</a>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

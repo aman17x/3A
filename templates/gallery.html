@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="gallery-header">
+    <div class="section-tile">
+        <h2>Featured Artworks</h2>
+        <p>Discover and share amazing art from our community</p>
+    </div>
+</section>
+
+<div class="gallery-grid main-gallery-grid">
+    {% for post in posts %}
+    <div class="art-card" data-post-id="{{ post.id }}">
+        <!-- Clickable image to artwork detail -->
+        <a href="{{ url_for('art_detail', post_id=post.id) }}" class="image-wrap">
+            <img src="{{ post.image_url }}" alt="{{ post.title }}">
+        </a>
+
+        <div class="art-details">
+            <h3 class="art-title">
+                <a href="{{ url_for('art_detail', post_id=post.id) }}" class="art-title-link">
+                    {{ post.title }}
+                </a>
+            </h3>
+
+            <p class="art-caption">{{ post.caption }}</p>
+
+            <!-- Link username to the user's profile -->
+            <span class="art-meta">
+                by 
+                <a href="{{ url_for('user_profile', user_id=post.user.id) }}" class="user-link">
+                    {{ post.user.username }}
+                </a>
+                • {{ post.created_at.strftime('%b %d, %Y') }}
+            </span>
+        </div>
+
+        <!-- Show delete if admin OR post owner -->
+        {% if current_user and (current_user.is_admin or current_user.id == post.user_id) %}
+        <button class="delete-btn" data-post-id="{{ post.id }}" title="Delete">&times;</button>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if not posts %}
+<div class="empty-state">
+    <h3>No artworks yet</h3>
+    <p>Be the first to share!</p>
+    {% if session.user_id %}
+    <a href="{{ url_for('upload') }}" class="btn-primary">Upload Your Art</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

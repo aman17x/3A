@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="profile-header-main">
+    <div class="theme-switch-container">
+        <button id="theme-toggle" aria-label="Toggle light/dark theme">🌙</button>
+    </div>
+    <div class="profile-card">
+        <!-- Avatar -->
+        {% if profile_user.avatar_url %}
+        <img src="{{ profile_user.avatar_url }}"
+             alt="{{ profile_user.username }}"
+             class="profile-avatar">
+        {% else %}
+        <div class="avatar-fallback profile-avatar">
+            {{ profile_user.username[0] | upper }}
+        </div>
+        {% endif %}
+
+        <!-- Neon Username -->
+        <h2 class="profile-headline">{{ profile_user.username }}</h2>
+        <p class="muted email">{{ profile_user.email }}</p>
+
+        {% if profile_user.bio %}
+        <div class="bio">{{ profile_user.bio }}</div>
+        {% endif %}
+
+        <div class="profile-stats">
+            <span><strong>{{ posts|length }}</strong> Artworks</span>
+            <span>Joined {{ profile_user.created_at.strftime('%B %Y') }}</span>
+        </div>
+
+        {% if is_owner %}
+        <a href="{{ url_for('settings') }}" class="btn btn-primary">Edit Profile</a>
+        {% endif %}
+    </div>
+</section>
+
+<section class="profile-artworks">
+    <!-- Translucent tile for section heading -->
+    <div class="section-head-tile">
+        <h3>Artworks</h3>
+        {% if posts %}
+        <p class="muted small">{{ posts|length }} total uploaded</p>
+        {% endif %}
+    </div>
+
+    <!-- Gallery of artworks -->
+    <div class="gallery-grid profile-gallery">
+        {% for post in posts %}
+        <div class="art-card" data-post-id="{{ post.id }}">
+            <a href="{{ url_for('art_detail', post_id=post.id) }}" class="image-wrap">
+                <img src="{{ post.image_url }}" alt="{{ post.title }}">
+            </a>
+            <div class="art-details">
+                <h4 class="art-title">
+                    <a href="{{ url_for('art_detail', post_id=post.id) }}" class="art-title-link">{{ post.title }}</a>
+                </h4>
+                <span class="art-meta">{{ post.created_at.strftime('%b %d, %Y') }}</span>
+            </div>
+            {% if current_user and (current_user.is_admin or current_user.id == post.user_id) %}
+            <button class="delete-btn" data-post-id="{{ post.id }}" title="Delete">&times;</button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not posts %}
+    <div class="empty-state">
+        <p>No artworks yet.</p>
+        {% if is_owner %}
+        <a href="{{ url_for('upload') }}" class="btn btn-primary">Upload Your First Artwork</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}
