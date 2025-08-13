@@ -39,9 +39,16 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret')
 
-# DB config
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///art_gallery.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# =======================
+# Database Configuration
+# =======================
+db_url = os.environ.get("DATABASE_URL")
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+# Use PostgreSQL if DATABASE_URL exists, else fallback to SQLite locally
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///art_gallery.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 # Cloudinary config
@@ -92,7 +99,6 @@ class ArtPost(db.Model):
     def like_count(self):
         return self.likes.count()
 
-# Like Model
 class Like(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
