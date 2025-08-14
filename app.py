@@ -11,6 +11,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # ==================================================
+<<<<<<< HEAD
 # Load env variables
 # ==================================================
 load_dotenv()
@@ -40,6 +41,12 @@ cloudinary.config(
     api_secret=os.getenv('CLOUDINARY_API_SECRET')
 )
 
+=======
+# Load environment variables
+# ==================================================
+load_dotenv()
+
+>>>>>>> cf5a550d0a932cfc51955a1aeca06b527f20fa7a
 # ==================================================
 # Email Sending Utility
 # ==================================================
@@ -62,6 +69,35 @@ def send_email(to_email, subject, body):
         print(f"Failed to send email: {e}")
 
 # ==================================================
+<<<<<<< HEAD
+=======
+# Flask App Setup
+# ==================================================
+app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'dev-secret')
+
+# ==================================================
+# Database Configuration
+# ==================================================
+db_url = os.getenv("DATABASE_URL")
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///art_gallery.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
+
+# ==================================================
+# Cloudinary Configuration
+# ==================================================
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+)
+
+# ==================================================
+>>>>>>> cf5a550d0a932cfc51955a1aeca06b527f20fa7a
 # Models
 # ==================================================
 class User(db.Model):
@@ -150,7 +186,7 @@ def search():
         ).order_by(ArtPost.created_at.desc()).all()
     return render_template('search_results.html', posts=results, query=query)
 
-@app.route('/signup', methods=['GET','POST'])
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         u, e, p = request.form['username'], request.form['email'], request.form['password']
@@ -164,7 +200,7 @@ def signup():
         return redirect(url_for('gallery'))
     return render_template('signup.html')
 
-@app.route('/signin', methods=['GET','POST'])
+@app.route('/signin', methods=['GET', 'POST'])
 def signin():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form['email']).first()
@@ -174,7 +210,7 @@ def signin():
         return jsonify({'error': 'Invalid'}), 401
     return render_template('signin.html')
 
-@app.route('/upload', methods=['GET','POST'])
+@app.route('/upload', methods=['GET', 'POST'])
 def upload():
     if 'user_id' not in session:
         return redirect(url_for('signin'))
@@ -340,3 +376,22 @@ def admin_dashboard():
                            user_count=user_count,
                            artwork_count=artwork_count,
                            comment_count=comment_count)
+<<<<<<< HEAD
+=======
+
+# ==================================================
+# Main Entry
+# ==================================================
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+        admin_email = os.getenv("ADMIN_EMAIL")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        admin_username = os.getenv("ADMIN_USERNAME", "admin")
+        if admin_email and not User.query.filter_by(email=admin_email).first():
+            admin = User(username=admin_username, email=admin_email, is_admin=True)
+            admin.set_password(admin_password or "changeme")
+            db.session.add(admin)
+            db.session.commit()
+    app.run(debug=False)
+>>>>>>> cf5a550d0a932cfc51955a1aeca06b527f20fa7a
