@@ -11,6 +11,36 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # ==================================================
+# Load env variables
+# ==================================================
+load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'dev-secret')
+
+# ==================================================
+# Database Configuration
+# ==================================================
+db_url = os.environ.get("DATABASE_URL")
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+if db_url and "sslmode" not in db_url:
+    db_url += "?sslmode=require"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///art_gallery.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
+
+# ==================================================
+# Cloudinary Config
+# ==================================================
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+)
+
+# ==================================================
 # Email Sending Utility
 # ==================================================
 def send_email(to_email, subject, body):
@@ -30,33 +60,6 @@ def send_email(to_email, subject, body):
         print(f"Email sent to {to_email}")
     except Exception as e:
         print(f"Failed to send email: {e}")
-
-# ==================================================
-# Setup
-# ==================================================
-load_dotenv()
-
-app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'dev-secret')
-
-# =======================
-# Database Configuration
-# =======================
-db_url = os.environ.get("DATABASE_URL")
-if db_url and db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
-
-# Use PostgreSQL if DATABASE_URL exists, else fallback to SQLite locally
-app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///art_gallery.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-db = SQLAlchemy(app)
-
-# Cloudinary config
-cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.getenv('CLOUDINARY_API_KEY'),
-    api_secret=os.getenv('CLOUDINARY_API_SECRET')
-)
 
 # ==================================================
 # Models
@@ -83,9 +86,9 @@ class Comment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('art_post.id'), nullable=False)
-
     user = db.relationship('User', backref=db.backref('comments', lazy=True))
-    post = db.relationship('ArtPost', backref=db.backref('comments', lazy=True, cascade="all, delete-orphan"))
+    post = db.relationship('ArtPost', backref=db.backref(
+        'comments', lazy=True, cascade="all, delete-orphan"))
 
 class ArtPost(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -104,7 +107,6 @@ class Like(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('art_post.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_post_like'),)
 
 User.likes = db.relationship('Like', backref='user', lazy='dynamic')
@@ -279,18 +281,15 @@ def settings():
 def add_comment(post_id):
     if 'user_id' not in session:
         return redirect(url_for('signin'))
-
     text = request.form.get('text', '').strip()
     if not text:
         return redirect(url_for('art_detail', post_id=post_id))
-
     c = Comment(text=text, user_id=session['user_id'], post_id=post_id)
     db.session.add(c)
     db.session.commit()
 
     post = ArtPost.query.get_or_404(post_id)
     owner = User.query.get(post.user_id)
-
     if owner and owner.email:
         subject = "YOUR POST GOT A COMMENT"
         body = f"Your artwork '{post.title}' received a new comment:\n\n\"{text}\"\n\nVisit your post to reply."
@@ -341,16 +340,3 @@ def admin_dashboard():
                            user_count=user_count,
                            artwork_count=artwork_count,
                            comment_count=comment_count)
-
-# ==================================================
-# Main
-# ==================================================
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        if not User.query.filter_by(email='versionx17@gmail.com').first():
-            admin = User(username='verse17', email='versionx17@gmail.com', is_admin=True)
-            admin.set_password('rnkabhosda')
-            db.session.add(admin)
-            db.session.commit()
-    app.run(debug=False)
