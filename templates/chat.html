@@ -4,13 +4,7 @@
     <h2>Global Chat Room</h2>
 
     <!-- Scrollable messages area -->
-    <div id="messages" class="chat-messages">
-        {% for msg in messages %}
-        <div class="chat-message">
-            <strong>{{ msg.user.username }}</strong>: {{ msg.message }}
-        </div>
-        {% endfor %}
-    </div>
+    <div id="messages" class="chat-messages"></div>
 
     <!-- Input and send button -->
     <form id="chatForm" class="chat-form">
@@ -18,4 +12,38 @@
         <button type="submit" class="btn-primary">Send</button>
     </form>
 </div>
+
+<script>
+    async function loadMessages() {
+        let res = await fetch('/api/chat/messages');
+        if (!res.ok) return;
+        let data = await res.json();
+        let box = document.getElementById('messages');
+        box.innerHTML = '';
+        data.forEach(msg => {
+            let div = document.createElement('div');
+            div.classList.add('chat-message');
+            div.innerHTML = `<strong>${msg.user}</strong>: ${msg.message} <small>(${msg.created_at})</small>`;
+            box.appendChild(div);
+        });
+        box.scrollTop = box.scrollHeight;
+    }
+
+    document.getElementById('chatForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        let text = document.getElementById('msgInput').value;
+        if (!text) return;
+        await fetch('/api/chat/send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ message: text })
+        });
+        document.getElementById('msgInput').value = '';
+        loadMessages();
+    });
+
+    // Refresh chat every 2 seconds
+    setInterval(loadMessages, 10000);
+    loadMessages();
+</script>
 {% endblock %}

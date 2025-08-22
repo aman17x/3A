@@ -19,15 +19,14 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret')
 
 # ==================================================
-# Database Configuration
+# Database Configuration (PostgreSQL on Render / SQLite locally)
 # ==================================================
-db_url = os.environ.get("DATABASE_URL")
-if db_url and db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
-if db_url and "sslmode" not in db_url:
-    db_url += "?sslmode=require"
-
-app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///art_gallery.db"
+# ==================================================
+# Database Configuration (Local PostgreSQL)
+# ==================================================
+# Fixed local connection string
+# Replace 'postgres' and 'root' with your actual username/password if different
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:root@localhost/art_gallery_db_oxrl"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
@@ -68,7 +67,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
+    password = db.Column(db.String(120), nullable=False)  # plain-text password
     is_admin = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     avatar_url = db.Column(db.String(255), default='')
@@ -156,8 +155,7 @@ def signup():
         u, e, p = request.form['username'], request.form['email'], request.form['password']
         if User.query.filter_by(username=u).first() or User.query.filter_by(email=e).first():
             return jsonify({'error': 'User exists'}), 400
-        user = User(username=u, email=e)
-        user.set_password(p)
+        user = User(username=u, email=e, password=p)  # store plain password
         db.session.add(user)
         db.session.commit()
         session['user_id'] = user.id
@@ -168,7 +166,7 @@ def signup():
 def signin():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form['email']).first()
-        if user and user.check_password(request.form['password']):
+        if user and user.password == request.form['password']:  # plain check
             session['user_id'] = user.id
             return redirect(url_for('gallery'))
         return jsonify({'error': 'Invalid'}), 401
@@ -192,12 +190,22 @@ def upload():
         return redirect(url_for('gallery'))
     return render_template('upload.html')
 
-@app.route('/chat')
+@app.route("/chat", methods=["GET", "POST"])
 def chat():
     if 'user_id' not in session:
         return redirect(url_for('signin'))
-    msgs = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(50).all()
-    return render_template('chat.html', messages=msgs)
+
+    if request.method == "POST":
+        message = request.form.get("message", "").strip()
+        if message:
+            msg = ChatMessage(message=message, user_id=session['user_id'])
+            db.session.add(msg)
+            db.session.commit()
+        return redirect(url_for("chat"))
+
+    # fetch all messages with users
+    messages = ChatMessage.query.join(User).order_by(ChatMessage.created_at.asc()).all()
+    return render_template("chat.html", messages=messages)
 
 @app.route('/api/chat/send', methods=['POST'])
 def send_message():
@@ -313,6 +321,20 @@ def like_post(post_id):
         db.session.add(like)
         db.session.commit()
         return jsonify({'status': 'liked', 'likes': post.like_count()})
+@app.route('/api/chat/messages', methods=['GET'])
+def get_messages():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Auth required'}), 401
+    msgs = ChatMessage.query.order_by(ChatMessage.created_at.asc()).all()
+    return jsonify([
+        {
+            'id': m.id,
+            'message': m.message,
+            'user': m.user.username,
+            'created_at': m.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        for m in msgs
+    ])
 
 @app.route('/users')
 def users_list():
@@ -340,3 +362,34 @@ def admin_dashboard():
                            user_count=user_count,
                            artwork_count=artwork_count,
                            comment_count=comment_count)
+
+# ==================================================
+# Auto-create DB Tables on App Startup (Flask 3.x compatible)
+# ==================================================
+def initialize_database():
+    try:
+        db.create_all()
+        if not User.query.filter_by(email='baruahaman17@gmail.com').first():
+            admin = User(
+                username='verse17',
+                email='baruahaman17@gmail.com',
+                is_admin=True,
+                password=os.getenv("ADMIN_PASSWORD", "change-this-password")  # plain-text
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ Admin user created automatically.")
+        else:
+            print("ℹ Admin user already exists.")
+    except Exception as e:
+        print(f"⚠ DB initialization error: {e}")
+
+# Run initialization immediately at startup
+with app.app_context():
+    initialize_database()
+
+# ==================================================
+# Run the App
+# ==================================================
+if __name__ == "__main__":
+    app.run(debug=False)
