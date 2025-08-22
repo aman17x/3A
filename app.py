@@ -6,6 +6,7 @@ import cloudinary.uploader
 from datetime import datetime
 from dotenv import load_dotenv
 import smtplib
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -207,17 +208,26 @@ def send_message():
     return jsonify({'success': True})
 
 @app.route('/api/posts/<int:post_id>/delete', methods=['POST'])
+
 def delete_post(post_id):
     user_id = session.get('user_id')
+    app.logger.info(f"Delete request: post_id={post_id}, user_id={user_id}")
     if not user_id:
+        app.logger.warning("Delete denied: user not authenticated")
         return jsonify({'error': 'Authentication required'}), 401
     user = User.query.get(user_id)
     post = ArtPost.query.get_or_404(post_id)
     if not (user.is_admin or post.user_id == user.id):
+        app.logger.warning("Delete denied: insufficient permissions")
         return jsonify({'error': 'Permission denied'}), 403
-    db.session.delete(post)
-    db.session.commit()
-    return jsonify({'success': True})
+    try:
+        db.session.delete(post)
+        db.session.commit()
+        app.logger.info(f"Post deleted: post_id={post_id} by user_id={user_id}")
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error deleting post: {e}")
+        return jsonify({'error': 'Error deleting post'}), 500
 
 @app.route('/logout')
 def logout():
@@ -297,21 +307,28 @@ def add_comment(post_id):
 
 @app.route('/like/<int:post_id>', methods=['POST'])
 def like_post(post_id):
-    if 'user_id' not in session:
+    user_id = session.get('user_id')
+    app.logger.info(f"Like request: post_id={post_id}, user_id={user_id}")
+    if not user_id:
+        app.logger.warning("Like denied: user not authenticated")
         return jsonify({'error': 'Authentication required'}), 401
-    user_id = session['user_id']
     post = ArtPost.query.get_or_404(post_id)
     existing = Like.query.filter_by(user_id=user_id, post_id=post.id).first()
-    if existing:
-        db.session.delete(existing)
-        db.session.commit()
-        return jsonify({'status': 'unliked', 'likes': post.like_count()})
-    else:
-        like = Like(user_id=user_id, post_id=post.id)
-        db.session.add(like)
-        db.session.commit()
-        return jsonify({'status': 'liked', 'likes': post.like_count()})
-
+    try:
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
+            app.logger.info(f"Post unliked: post_id={post_id} by user_id={user_id}")
+            return jsonify({'status': 'unliked', 'likes': post.like_count()})
+        else:
+            like = Like(user_id=user_id, post_id=post.id)
+            db.session.add(like)
+            db.session.commit()
+            app.logger.info(f"Post liked: post_id={post_id} by user_id={user_id}")
+            return jsonify({'status': 'liked', 'likes': post.like_count()})
+    except Exception as e:
+        app.logger.error(f"Error toggling like: {e}")
+        return jsonify({'error': 'Error processing like'}), 500
 @app.route('/api/chat/messages', methods=['GET'])
 def get_messages():
     if 'user_id' not in session:
