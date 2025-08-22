@@ -163,6 +163,9 @@ def signin():
             return redirect(url_for('gallery'))
         return jsonify({'error': 'Invalid'}), 401
     return render_template('signin.html')
+@app.route('/session-info')
+def session_info():
+    return jsonify(dict(user_id=session.get('user_id')))
 
 @app.route('/upload', methods=['GET','POST'])
 def upload():
