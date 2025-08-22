@@ -1,7 +1,6 @@
 import os
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session, abort
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary
 import cloudinary.uploader
 from datetime import datetime
@@ -11,7 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # ==================================================
-# Load env variables
+# Load environment variables
 # ==================================================
 load_dotenv()
 
@@ -19,14 +18,12 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret')
 
 # ==================================================
-# Database Configuration (PostgreSQL on Render / SQLite locally)
+# Database Configuration (Railway Postgres)
 # ==================================================
-# ==================================================
-# Database Configuration (Local PostgreSQL)
-# ==================================================
-# Fixed local connection string
-# Replace 'postgres' and 'root' with your actual username/password if different
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:root@localhost/art_gallery_db_oxrl"
+DATABASE_URL = os.getenv('DATABASE_URL')
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not set! Add it to your Railway Variables or .env")
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
@@ -72,12 +69,6 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     avatar_url = db.Column(db.String(255), default='')
     bio = db.Column(db.Text, default='')
-
-    def set_password(self, pw):
-        self.password_hash = generate_password_hash(pw)
-
-    def check_password(self, pw):
-        return check_password_hash(self.password_hash, pw)
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -155,7 +146,7 @@ def signup():
         u, e, p = request.form['username'], request.form['email'], request.form['password']
         if User.query.filter_by(username=u).first() or User.query.filter_by(email=e).first():
             return jsonify({'error': 'User exists'}), 400
-        user = User(username=u, email=e, password=p)  # store plain password
+        user = User(username=u, email=e, password=p)
         db.session.add(user)
         db.session.commit()
         session['user_id'] = user.id
@@ -166,7 +157,7 @@ def signup():
 def signin():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form['email']).first()
-        if user and user.password == request.form['password']:  # plain check
+        if user and user.password == request.form['password']:
             session['user_id'] = user.id
             return redirect(url_for('gallery'))
         return jsonify({'error': 'Invalid'}), 401
@@ -203,7 +194,6 @@ def chat():
             db.session.commit()
         return redirect(url_for("chat"))
 
-    # fetch all messages with users
     messages = ChatMessage.query.join(User).order_by(ChatMessage.created_at.asc()).all()
     return render_template("chat.html", messages=messages)
 
@@ -278,7 +268,7 @@ def settings():
 
         new_pw = request.form.get('new_password', '').strip()
         if new_pw:
-            user.set_password(new_pw)
+            user.password = new_pw  # raw password
 
         db.session.commit()
         return redirect(url_for('user_profile', user_id=user.id))
@@ -321,6 +311,7 @@ def like_post(post_id):
         db.session.add(like)
         db.session.commit()
         return jsonify({'status': 'liked', 'likes': post.like_count()})
+
 @app.route('/api/chat/messages', methods=['GET'])
 def get_messages():
     if 'user_id' not in session:
@@ -364,7 +355,7 @@ def admin_dashboard():
                            comment_count=comment_count)
 
 # ==================================================
-# Auto-create DB Tables on App Startup (Flask 3.x compatible)
+# Auto-create DB Tables on App Startup
 # ==================================================
 def initialize_database():
     try:
@@ -374,7 +365,7 @@ def initialize_database():
                 username='verse17',
                 email='baruahaman17@gmail.com',
                 is_admin=True,
-                password=os.getenv("ADMIN_PASSWORD", "change-this-password")  # plain-text
+                password=os.getenv("ADMIN_PASSWORD", "admin123")
             )
             db.session.add(admin)
             db.session.commit()
@@ -384,7 +375,6 @@ def initialize_database():
     except Exception as e:
         print(f"⚠ DB initialization error: {e}")
 
-# Run initialization immediately at startup
 with app.app_context():
     initialize_database()
 
